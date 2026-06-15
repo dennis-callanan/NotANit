@@ -1,0 +1,32 @@
+{
+  "scm": {
+    "provider": "gitlab",
+    "url": "https://gitlab.com",
+    "project_path": "mygroup/myrepo"
+  },
+  "llm": {
+    "provider": "anthropic",
+    "model_id": "claude-sonnet-4-6",
+    "max_tokens": 4096
+  },
+  "pipeline": {
+    "weeks": 8,
+    "target_files": ["AGENTS.md"],
+    "output_dir": "proposals",
+    "max_proposals": 3,
+    "min_mr_occurrences": 3,
+    "min_comment_length": 20,
+    "theme_keywords": {
+      "testing": ["test", "spec", "coverage", "regression", "mock", "stub", "assert"],
+      "error_handling": ["error", "exception", "raise", "catch", "handle", "graceful"],
+      "types": ["type hint", "typing", "mypy", "annotation", "typed"],
+      "documentation": ["docstring", "comment", "doc", "readme", "changelog"],
+      "naming": ["naming", "rename", "variable name", "function name", "misleading"],
+      "code_structure": ["extract", "refactor", "split", "too long", "complexity", "abstraction"],
+      "security": ["secret", "credential", "token", "auth", "permission", "sensitive"],
+      "performance": ["n+1", "query", "performance", "slow", "cache", "batch"]
+    },
+    "noise_patterns": ["lgtm", "looks good", "approved", "thanks", "+1"],
+    "extra_guidance": ""
+  }
+}

@@ -1,0 +1,6 @@
+requests
+# Optional extras:
+#   boto3   — only needed for the AWS Bedrock LLM provider
+#   pyyaml  — only needed to use a YAML (rather than JSON) config file
+boto3
+pyyaml

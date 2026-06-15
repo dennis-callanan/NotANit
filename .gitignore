@@ -1,0 +1,10 @@
+# Output directory for generated proposals
+proposals/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env

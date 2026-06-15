@@ -1,0 +1,63 @@
+# NotANit — example configuration
+#
+# Everything here is OPTIONAL. Precedence is:
+#   CLI flag  >  environment variable  >  this file  >  built-in default
+#
+# Copy to `config.yaml`, edit, and run with:  --config config.yaml
+# (A JSON file with the same structure works too — see config.example.json.)
+#
+# Secrets (tokens, API keys) are best kept in env vars rather than committed
+# here, but the fields are supported for local/testing convenience.
+
+scm:
+  provider: gitlab            # "gitlab" or "github"
+  url: https://gitlab.com     # GitHub: https://api.github.com (or .../api/v3 for Enterprise)
+  project_path: mygroup/myrepo
+  # token: ...                # prefer SCM_TOKEN / GITLAB_TOKEN / GITHUB_TOKEN env vars
+
+llm:
+  provider: anthropic         # "anthropic" (direct API) or "bedrock" (AWS)
+  model_id: claude-sonnet-4-6
+  max_tokens: 4096
+  # --- anthropic ---
+  # api_key: ...              # prefer ANTHROPIC_API_KEY env var
+  # api_base: https://api.anthropic.com
+  # --- bedrock ---
+  # model_id: us.anthropic.claude-sonnet-4-6
+  # aws_region: us-east-1
+  # aws_role_arn: ""          # set to assume a role before calling Bedrock (optional)
+
+pipeline:
+  weeks: 8                    # how far back to look
+  target_files:              # the guidance docs to read & propose changes for
+    - AGENTS.md
+  output_dir: proposals
+  max_proposals: 3
+  min_mr_occurrences: 3       # a theme must recur across at least this many MRs/PRs
+  min_comment_length: 20      # comments shorter than this are dropped as noise
+
+  # Themes are lexical buckets: a comment is assigned to the FIRST theme whose
+  # keyword it contains. Replace or extend these for how YOUR team reviews.
+  theme_keywords:
+    testing: [test, spec, coverage, regression, mock, stub, assert]
+    error_handling: [error, exception, raise, catch, handle, graceful]
+    types: [type hint, typing, mypy, annotation, typed]
+    documentation: [docstring, comment, doc, readme, changelog]
+    naming: [naming, rename, variable name, function name, misleading]
+    code_structure: [extract, refactor, split, too long, complexity, abstraction]
+    security: [secret, credential, token, auth, permission, sensitive]
+    performance: ["n+1", query, performance, slow, cache, batch]
+
+  # Extra low-signal phrases to drop (case-insensitive substring match).
+  noise_patterns:
+    - lgtm
+    - looks good
+    - approved
+    - thanks
+    - "+1"
+
+  # OPTIONAL free-text instructions appended to the LLM prompt. Use this to nudge
+  # tone or scope without touching code, e.g.:
+  # extra_guidance: >
+  #   Prefer imperative phrasing ("Write a test for…"). Never propose changes
+  #   about code formatting — that is handled by our auto-formatter.

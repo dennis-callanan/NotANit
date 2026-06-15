@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="NotANit">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="55%" stop-color="#131a2a"/>
+      <stop offset="100%" stop-color="#1b1033"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7c8cff"/>
+      <stop offset="50%" stop-color="#a07cff"/>
+      <stop offset="100%" stop-color="#54d6c4"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .title { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-weight: 800; }
+      .sub   { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-weight: 500; }
+      .mono  { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="400" fill="url(#bg)"/>
+
+  <!-- subtle grid -->
+  <g stroke="#ffffff" stroke-opacity="0.04">
+    <path d="M0 80 H1280 M0 160 H1280 M0 240 H1280 M0 320 H1280"/>
+    <path d="M160 0 V400 M320 0 V400 M480 0 V400 M640 0 V400 M800 0 V400 M960 0 V400 M1120 0 V400"/>
+  </g>
+
+  <!-- glowing accent bar -->
+  <rect x="80" y="120" width="6" height="160" rx="3" fill="url(#accent)" filter="url(#soft)"/>
+
+  <!-- title -->
+  <text x="116" y="178" class="title" font-size="68" fill="#f0f3ff">NotANit</text>
+  <text x="118" y="232" class="sub" font-size="27" fill="#aab4d4">&#8220;Just a nit, but&#8230;&#8221; — keep your AGENTS.md honest by</text>
+  <text x="118" y="268" class="sub" font-size="27" fill="#aab4d4">learning how your team <tspan fill="#a07cff" font-weight="700">actually</tspan> reviews code.</text>
+
+  <!-- pipeline chips -->
+  <g class="mono" font-size="18">
+    <g transform="translate(118,310)">
+      <rect width="150" height="40" rx="8" fill="#1e2740" stroke="#33406b"/>
+      <text x="75" y="26" text-anchor="middle" fill="#8fa0ff">PRs / MRs</text>
+    </g>
+    <text x="284" y="336" fill="#54d6c4" font-size="22">→</text>
+    <g transform="translate(312,310)">
+      <rect width="150" height="40" rx="8" fill="#1e2740" stroke="#33406b"/>
+      <text x="75" y="26" text-anchor="middle" fill="#8fa0ff">cluster</text>
+    </g>
+    <text x="478" y="336" fill="#54d6c4" font-size="22">→</text>
+    <g transform="translate(506,310)">
+      <rect width="150" height="40" rx="8" fill="#1e2740" stroke="#33406b"/>
+      <text x="75" y="26" text-anchor="middle" fill="#8fa0ff">LLM</text>
+    </g>
+    <text x="672" y="336" fill="#54d6c4" font-size="22">→</text>
+    <g transform="translate(700,310)">
+      <rect width="190" height="40" rx="8" fill="#23203f" stroke="#5b4b8a"/>
+      <text x="95" y="26" text-anchor="middle" fill="#c7b6ff">proposals</text>
+    </g>
+  </g>
+
+  <!-- decorative right-side document/diff motif -->
+  <g transform="translate(980,70)" opacity="0.96">
+    <rect x="0" y="0" width="220" height="260" rx="14" fill="#0b0f1a" stroke="#2a3354" stroke-width="2"/>
+    <rect x="0" y="0" width="220" height="44" rx="14" fill="#161d33"/>
+    <circle cx="24" cy="22" r="6" fill="#ff6b6b"/>
+    <circle cx="46" cy="22" r="6" fill="#ffd166"/>
+    <circle cx="68" cy="22" r="6" fill="#54d6c4"/>
+    <text x="150" y="27" class="mono" font-size="14" fill="#6b7699" text-anchor="middle">AGENTS.md</text>
+
+    <rect x="20" y="64"  width="120" height="10" rx="5" fill="#33406b"/>
+    <rect x="20" y="86"  width="180" height="10" rx="5" fill="#26304d"/>
+    <rect x="20" y="108" width="150" height="10" rx="5" fill="#26304d"/>
+
+    <!-- added line (green) -->
+    <rect x="12" y="130" width="196" height="22" rx="5" fill="#103326"/>
+    <text x="22" y="146" class="mono" font-size="13" fill="#54d6c4">+ Always add a test</text>
+
+    <rect x="20" y="166" width="170" height="10" rx="5" fill="#26304d"/>
+    <!-- added line (green) -->
+    <rect x="12" y="186" width="196" height="22" rx="5" fill="#103326"/>
+    <text x="22" y="202" class="mono" font-size="13" fill="#54d6c4">+ Handle errors</text>
+    <rect x="20" y="222" width="120" height="10" rx="5" fill="#26304d"/>
+  </g>
+</svg>
