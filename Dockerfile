@@ -12,8 +12,8 @@
 #     -v "/path/to/target-repo:/repo" \
 #     notanit
 #
-# with `pipeline.repo_root: /repo` in config.yaml. Proposals are written to
-# /repo/proposals, which appears in the mounted repo on the host.
+# with `pipeline.repo_root: /repo` in config.yaml. The target doc files are edited
+# in place in the mounted repo, so the changes appear on the host.
 
 FROM python:3.12-slim
 
@@ -30,5 +30,5 @@ COPY scripts ./scripts
 RUN useradd --create-home --uid 1000 notanit
 USER notanit
 
+# WORKDIR is /app, so config.yaml mounted at /app/config.yaml is found by default.
 ENTRYPOINT ["python", "-m", "scripts.notanit.main"]
-CMD ["--config", "/app/config.yaml"]

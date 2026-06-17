@@ -115,11 +115,20 @@ relevant section heading. A run prints a summary of every change applied.
 
 ## ⚙️ Configuration
 
-**All configuration lives in one YAML file** ([`config.example.yaml`](./config.example.yaml)) —
-it's the single place that tells the whole story of a run. Any value may reference
-an environment variable with **`${VAR}`**, resolved at load time. Credentials are
-referenced this way, so the config documents what each provider needs while the
-secret *values* stay in `.env`:
+**All configuration lives in one YAML file** ([`config.example.yaml`](./config.example.yaml)),
+and it ships with sensible defaults — copy it, fill in your connection details, and
+you're running. Settings come in two groups:
+
+- **Controls** (`pipeline`) — the dials that shape a run: how far back to look,
+  how many edits to make, what counts as signal vs noise. The defaults are
+  sensible; reach for these as you tune.
+- **Integrations** (`scm`, `llm`) — the systems NotANit connects to: SCM URL,
+  models, keys, tokens. Set these once for your environment.
+
+Any value may reference an environment variable with **`${VAR}`**, resolved at load
+time (precedence: **environment variable → YAML config → built-in default**).
+Credentials are referenced this way, so the config documents what each provider
+needs while the secret *values* stay in `.env`:
 
 ```yaml
 scm:
@@ -128,38 +137,30 @@ scm:
   token: ${SCM_TOKEN}          # value comes from .env / your shell
 ```
 
-Resolution precedence (per value):
-
-> **environment variable → YAML config (`${VAR}` resolved) → built-in default**
-
-### Secret values: the `.env` file
-
-`${VAR}` references resolve from your shell environment — and `.env` is just a
-convenient, gitignored place to put those values so you don't have to `export`
-them by hand:
-
-```bash
-cp .env.example .env        # fill in the secret values
-python3 -m scripts.notanit.main
-```
-
-- `${VAR}` resolves from **`.env` first, then the real shell environment** (shell
-  vars already set take precedence over `.env`).
-- [`.env.example`](./.env.example) lists every credential, so it doubles as a checklist.
-- `.env` is read from the working directory; values already exported in your shell take precedence over it.
-- `.env` is a plain `KEY=VALUE` loader (with `#` comment lines and optional quotes) —
-  keep comments on their own line, not trailing a value.
-- Write a **literal** secret into the YAML (instead of a `${VAR}` reference) and you
-  get a **warning** — it's a credential about to be committed.
-- If you omit a credential field from the YAML entirely, its conventional env var
-  (`SCM_TOKEN`, `ANTHROPIC_API_KEY`, `AWS_*`) is still used as a fallback.
-
 ### Settings reference
 
-All settings live in the YAML config — there are no CLI flags. `config.yaml` and
-`.env` are read from the working directory. Provider-specific LLM settings live
-under `llm.anthropic` / `llm.bedrock`; only the block matching `llm.provider` is
-read, so you can keep both populated and switch with one line.
+There are no CLI flags — `config.yaml` and `.env` are both read from the working
+directory.
+
+#### Controls — tuning each run
+
+| Setting (YAML key) | Default | Notes |
+| --- | --- | --- |
+| `pipeline.repo_root` | `.` | Local checkout to read & edit docs under (in Docker, the mounted path). |
+| `pipeline.target_files` | `[AGENTS.md]` | Repo-relative doc paths to analyse and edit in place. |
+| `pipeline.weeks` | `8` | Weeks of merged history to analyse. |
+| `pipeline.min_mr_occurrences` | `3` | A theme must appear in at least this many distinct PRs/MRs. |
+| `pipeline.max_changes` | `3` | Maximum edits applied per run. |
+| `pipeline.min_comment_length` | `20` | Comments shorter than this are dropped as noise. |
+
+<sub>The remaining controls (themes, noise filters, `extra_guidance`, …) are
+covered under [Customisation](#-customisation).</sub>
+
+#### Integrations — connecting to your systems
+
+Provider-specific LLM settings live under `llm.anthropic` / `llm.bedrock`; only
+the block matching `llm.provider` is read, so you can keep both populated and
+switch with one line.
 
 | Setting (YAML key) | Default | Notes |
 | --- | --- | --- |
@@ -167,6 +168,8 @@ read, so you can keep both populated and switch with one line.
 | `scm.url` | per provider | API base URL (see [Providers](#-providers)). |
 | `scm.project_path` | *(required)* | `group/repo` or `owner/repo`. |
 | `scm.token` | — | **Credential** → `${SCM_TOKEN}` (or `GITLAB_TOKEN` / `GITHUB_TOKEN`). |
+| `scm.ca_bundle` | — | Path to a CA-bundle PEM (e.g. a corporate TLS-proxy root CA). |
+| `scm.verify_tls` | `true` | Set `false` to skip TLS verification (insecure; last resort). |
 | `llm.provider` | inferred | Selects the active block. **Optional** — inferred when you configure only one of `llm.anthropic` / `llm.bedrock`; required only if both are populated. |
 | `llm.max_tokens` | `4096` | Max output tokens (shared). |
 | `llm.anthropic.model_id` | `claude-sonnet-4-6` | Anthropic model ID. |
@@ -180,16 +183,24 @@ read, so you can keep both populated and switch with one line.
 | `llm.bedrock.aws_secret_access_key` | — | **Credential** → `${AWS_SECRET_ACCESS_KEY}`. |
 | `llm.bedrock.aws_session_token` | — | **Credential** → `${AWS_SESSION_TOKEN}`; only for temporary (`ASIA…`) creds. |
 | `llm.bedrock.api_version` | `bedrock-2023-05-31` | Bedrock Anthropic API version. |
-| `pipeline.repo_root` | `.` | Local checkout to read & edit docs under (in Docker, the mounted path). |
-| `pipeline.target_files` | `[AGENTS.md]` | Repo-relative doc paths to analyse and edit in place. |
-| `pipeline.weeks` | `8` | Weeks of merged history to analyse. |
-| `pipeline.min_mr_occurrences` | `3` | A theme must appear in at least this many distinct PRs/MRs. |
-| `pipeline.max_changes` | `3` | Maximum edits applied per run. |
-
-<sub>The remaining pipeline settings (themes, noise filters, `extra_guidance`, …)
-are covered under [Customisation](#-customisation).</sub>
 
 See [`config.example.yaml`](./config.example.yaml) for the full, annotated shape.
+
+### Secret values: the `.env` file
+
+The mechanics behind those `${VAR}` references. `.env` is just a convenient,
+gitignored place to keep secret values so you don't have to `export` them by hand:
+
+```bash
+cp .env.example .env        # fill in the secret values
+python3 -m scripts.notanit.main
+```
+
+- `${VAR}` resolves from **`.env` first, then the real shell environment** — values already exported in your shell take precedence.
+- [`.env.example`](./.env.example) lists every credential, so it doubles as a checklist.
+- `.env` is a plain `KEY=VALUE` loader (with `#` comment lines and optional quotes) — keep comments on their own line, not trailing a value.
+- Write a **literal** secret into the YAML (instead of a `${VAR}` reference) and you get a **warning** — it's a credential about to be committed.
+- If you omit a credential field from the YAML entirely, its conventional env var (`SCM_TOKEN`, `ANTHROPIC_API_KEY`, `AWS_*`) is still used as a fallback.
 
 ### Setting up AWS Bedrock
 

@@ -10,6 +10,12 @@
 # so this file documents what each provider needs while the secret values live in
 # .env — see .env.example. (Write a literal secret here and you'll get a warning.)
 
+# ===========================================================================
+# INTEGRATIONS — how NotANit connects to the systems it needs to function.
+# Where to read code-review history from (your SCM) and which model writes the
+# edits (your LLM): URLs, models, keys, tokens. Set these once per environment.
+# ===========================================================================
+
 scm:
   provider: gitlab            # "gitlab" or "github"
   url: https://gitlab.com     # GitHub: https://api.github.com (or .../api/v3 for Enterprise)
@@ -44,6 +50,12 @@ llm:
     aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}  # value from .env
     aws_session_token: ${AWS_SESSION_TOKEN}          # only for temporary (ASIA...) creds
     # api_version: bedrock-2023-05-31
+
+# ===========================================================================
+# CONTROLS — the dials that tune what NotANit does on each run.
+# How far back to look, how many edits to make, and what counts as signal vs
+# noise. These shape the behaviour of a run; tweak them freely.
+# ===========================================================================
 
 pipeline:
   repo_root: .                # local checkout of the repo whose docs are read/updated
