@@ -2,12 +2,12 @@
 #
 #   1. cp .env.example .env            # fill in secret VALUES
 #   2. cp config.example.yaml config.yaml   # set provider, project_path, etc.
-#      -> set `pipeline.repo_root: /repo` in config.yaml
-#   3. TARGET_REPO=/abs/path/to/repo docker compose run --rm notanit
+#      -> set `pipeline.target_root: /docs` in config.yaml
+#   3. TARGET_DOCS=/abs/path/to/docs-folder docker compose run --rm notanit
 #
 # `env_file` injects the secrets from .env into the container, where the config's
-# ${VAR} references resolve them. config.yaml and the target repo are mounted in;
-# proposals are written to /repo/proposals (visible in TARGET_REPO on the host).
+# ${VAR} references resolve them. config.yaml and the target docs folder are mounted
+# in; the doc files are edited in place (visible in TARGET_DOCS on the host).
 
 services:
   notanit:
@@ -18,4 +18,4 @@ services:
     env_file: .env
     volumes:
       - ./config.yaml:/app/config.yaml:ro
-      - ${TARGET_REPO:-./repo}:/repo
+      - ${TARGET_DOCS:-./docs}:/docs

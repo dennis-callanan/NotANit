@@ -96,7 +96,7 @@ class LLMConfig:
 
 @dataclass
 class PipelineConfig:
-    repo_root: str = "."  # local checkout of the repo whose docs are read/updated
+    target_root: str = "."  # folder holding the target_files to read/edit (in Docker, the mounted path)
     weeks: int = 8
     target_files: list[str] = field(default_factory=lambda: ["AGENTS.md"])
     max_changes: int = 3
@@ -399,7 +399,7 @@ def load_config(*, file_cfg: dict[str, Any] | None = None) -> Config:
     # --- Pipeline ----------------------------------------------------------
     defaults = PipelineConfig()
     pipeline = PipelineConfig(
-        repo_root=_first(pipe_file.get("repo_root"), defaults.repo_root),
+        target_root=_first(pipe_file.get("target_root"), defaults.target_root),
         weeks=int(_first(pipe_file.get("weeks"), defaults.weeks)),
         target_files=_first(pipe_file.get("target_files"), defaults.target_files),
         max_changes=int(_first(pipe_file.get("max_changes"), defaults.max_changes)),

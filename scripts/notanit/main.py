@@ -25,10 +25,10 @@ def main():
         print(f"[error] {e}", file=sys.stderr)
         sys.exit(1)
 
-    repo_root = Path(cfg.pipeline.repo_root).resolve()
+    target_root = Path(cfg.pipeline.target_root).resolve()
 
     try:
-        result = run(cfg, repo_root)
+        result = run(cfg, target_root)
     except Exception as e:
         print(f"\n[error] Pipeline failed: {e}", file=sys.stderr)
         sys.exit(1)

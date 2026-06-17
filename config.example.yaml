@@ -58,8 +58,8 @@ llm:
 # ===========================================================================
 
 pipeline:
-  repo_root: .                # local checkout of the repo whose docs are read/updated
-                              # (in Docker this is the mounted path, e.g. /repo)
+  target_root: .              # folder that contains the target_files below
+                              # (in Docker this is the mounted path, e.g. /docs)
   weeks: 8                    # how far back to look
   target_files:              # the guidance docs to read & edit in place
     - AGENTS.md

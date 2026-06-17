@@ -61,8 +61,10 @@ never to your SCM host. Review every edit with `git diff` and commit it yourself
 ## 🚀 Quick start
 
 You need two files — a `config.yaml` (all settings) and a `.env` (the secret
-values the config references) — plus a local clone of the repo whose docs you
-want to update.
+values the config references) — plus the doc file(s) you want to update on a
+local path NotANit can read and write. Those files usually live in a checkout
+of the target repo, but NotANit only ever touches the paths listed in
+`target_files`.
 
 ### Run with Docker (recommended — no clone, no Python)
 
@@ -70,19 +72,21 @@ Pulls a prebuilt image from GHCR; nothing to build.
 
 ```bash
 # 1. Grab the config + secrets templates (no need to clone this project)
-curl -fsSL https://raw.githubusercontent.com/<your-org>/notanit/main/config.example.yaml -o config.yaml
-curl -fsSL https://raw.githubusercontent.com/<your-org>/notanit/main/.env.example -o .env
-#    edit config.yaml  -> set scm.project_path and `pipeline.repo_root: /repo`
+curl -fsSL https://raw.githubusercontent.com/dennis-callanan/notanit/main/config.example.yaml -o config.yaml
+curl -fsSL https://raw.githubusercontent.com/dennis-callanan/notanit/main/.env.example -o .env
+#    edit config.yaml  -> set scm.project_path and `pipeline.target_root: /docs`
 #    edit .env         -> fill in the secret values
 
-# 2. Clone the repo you want to analyse
+# 2. Make the doc file(s) you want to update available in a local folder, so it
+#    can be mounted below. A checkout of the target repo is the usual way — but
+#    any folder works; NotANit only reads/writes the paths in `target_files`.
 git clone https://github.com/acme/widgets.git /tmp/widgets
 
-# 3. Run — mount config + repo, inject secrets via --env-file
+# 3. Run — mount config + the docs folder, inject secrets via --env-file
 docker run --rm --env-file .env \
   -v "$PWD/config.yaml:/app/config.yaml:ro" \
-  -v "/tmp/widgets:/repo" \
-  ghcr.io/<your-org>/notanit:latest
+  -v "/tmp/widgets:/docs" \
+  ghcr.io/dennis-callanan/notanit:latest
 ```
 
 The doc files under `/tmp/widgets` are edited in place on your host. See [Docker](#-docker)
@@ -91,11 +95,11 @@ for the `docker compose` one-liner and how the image is published.
 ### Run with Python
 
 ```bash
-git clone https://github.com/<your-org>/notanit.git && cd notanit
+git clone https://github.com/dennis-callanan/notanit.git && cd notanit
 pip install -r requirements.txt
 
-git clone https://github.com/acme/widgets.git /tmp/widgets   # the repo to analyse
-cp config.example.yaml config.yaml   # set scm.project_path and `repo_root: /tmp/widgets`
+git clone https://github.com/acme/widgets.git /tmp/widgets   # any folder holding the target docs
+cp config.example.yaml config.yaml   # set scm.project_path and `target_root: /tmp/widgets`
 cp .env.example .env                 # fill in the secret values
 
 python3 -m scripts.notanit.main      # reads ./config.yaml and ./.env by default
@@ -146,7 +150,7 @@ directory.
 
 | Setting (YAML key) | Default | Notes |
 | --- | --- | --- |
-| `pipeline.repo_root` | `.` | Local checkout to read & edit docs under (in Docker, the mounted path). |
+| `pipeline.target_root` | `.` | Folder that contains `target_files`, read & edited under (in Docker, the mounted path). |
 | `pipeline.target_files` | `[AGENTS.md]` | Repo-relative doc paths to analyse and edit in place. |
 | `pipeline.weeks` | `8` | Weeks of merged history to analyse. |
 | `pipeline.min_mr_occurrences` | `3` | A theme must appear in at least this many distinct PRs/MRs. |
@@ -275,20 +279,21 @@ python3 -m scripts.notanit.main      # reads ./config.yaml and ./.env
 ## 🐳 Docker
 
 Run NotANit without a local Python setup. The image contains only the code;
-your **config**, **secrets**, and the **target repo** are supplied at run time, so
-nothing sensitive is ever baked into the image.
+your **config**, **secrets**, and the **target doc files** are supplied at run time, so
+nothing sensitive is ever baked into the image. Mount any folder containing the
+docs you want updated to `/docs` — a checkout of the target repo is the usual one.
 
 ```bash
 docker run --rm --env-file .env \
   -v "$PWD/config.yaml:/app/config.yaml:ro" \
-  -v "/path/to/target-repo:/repo" \
-  ghcr.io/<your-org>/notanit:latest
+  -v "/path/to/docs-folder:/docs" \
+  ghcr.io/dennis-callanan/notanit:latest
 ```
 
-The target doc files under `/repo` (the mounted repo) are edited in place, so the
+The target doc files under `/docs` (the mounted folder) are edited in place, so the
 changes appear on your host. `--env-file .env` loads the secret values into the
 container environment, where the config's `${VAR}` references resolve them; the
-values never touch the image or `config.yaml`. Keep `pipeline.repo_root: /repo` in
+values never touch the image or `config.yaml`. Keep `pipeline.target_root: /docs` in
 your config so the container edits the mounted location.
 
 > **Tags:** `latest` tracks `main`; releases are tagged `v1.2.3` / `1.2`. Pin to a
@@ -302,7 +307,7 @@ No need to pull — you can build from a clone instead:
 docker build -t notanit .
 docker run --rm --env-file .env \
   -v "$PWD/config.yaml:/app/config.yaml:ro" \
-  -v "/path/to/target-repo:/repo" \
+  -v "/path/to/docs-folder:/docs" \
   notanit
 ```
 
@@ -311,11 +316,11 @@ docker run --rm --env-file .env \
 [`docker-compose.yml`](./docker-compose.yml) encodes the mounts so a run is one line:
 
 ```bash
-TARGET_REPO=/path/to/target-repo docker compose run --rm notanit
+TARGET_DOCS=/path/to/docs-folder docker compose run --rm notanit
 ```
 
-It reads `.env` for the secrets and mounts `./config.yaml` and `$TARGET_REPO`
-(defaulting to `./repo`). Keep `pipeline.repo_root: /repo` in your config so the
+It reads `.env` for the secrets and mounts `./config.yaml` and `$TARGET_DOCS`
+(defaulting to `./docs`). Keep `pipeline.target_root: /docs` in your config so the
 container writes to the mounted location.
 
 ### Publishing the image
@@ -383,7 +388,7 @@ threshold, and read more docs, all in `config.yaml`:
 
 ```yaml
 pipeline:
-  repo_root: /tmp/widgets
+  target_root: /tmp/widgets
   target_files:
     - AGENTS.md
     - CONTRIBUTING.md
@@ -410,7 +415,7 @@ pipeline:
 - A YAML config file (copy [`config.example.yaml`](./config.example.yaml) to `config.yaml`)
 - A read-only SCM token (GitLab `read_api` or GitHub `repo` read)
 - An LLM credential (Anthropic API key **or** AWS Bedrock access)
-- A local clone of the target repo (to read the doc files)
+- The target doc file(s) on a local path (a checkout of the target repo is the usual source, but any folder works)
 
 ---
 

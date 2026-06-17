@@ -207,7 +207,7 @@ def _resolve_target(target_file: str, doc_keys: list[str]) -> str | None:
 def _apply_changes(
     changes: list[dict],
     docs: dict[str, str],
-    repo_root: Path,
+    target_root: Path,
 ) -> list[dict]:
     """Write each change directly into its target file. Returns the changes that
     were actually applied (unresolvable target files are skipped)."""
@@ -228,7 +228,7 @@ def _apply_changes(
 
     # Write each touched file once, after all its edits are merged in.
     for target_file in {c["target_file"] for c in applied}:
-        full_path = repo_root / target_file
+        full_path = target_root / target_file
         full_path.write_text(updated[target_file], encoding="utf-8")
         print(f"  [write] {full_path}")
 
@@ -245,9 +245,9 @@ class PipelineResult:
     cluster_summaries: list[dict]
 
 
-def run(cfg: Config, repo_root: Path) -> PipelineResult:
+def run(cfg: Config, target_root: Path) -> PipelineResult:
     print("\n[1/5] Loading docs...")
-    docs = load_docs(cfg.pipeline.target_files, repo_root)
+    docs = load_docs(cfg.pipeline.target_files, target_root)
     if not docs:
         raise RuntimeError("No target files were loaded. Aborting.")
 
@@ -295,7 +295,7 @@ def run(cfg: Config, repo_root: Path) -> PipelineResult:
     print(f"  LLM returned {len(changes)} change(s)")
 
     print("\n[5/5] Applying changes to files...")
-    applied = _apply_changes(changes, docs, repo_root)
+    applied = _apply_changes(changes, docs, target_root)
 
     return PipelineResult(
         applied_changes=applied,
