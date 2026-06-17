@@ -37,7 +37,7 @@ get written by hand on every PR.
 **NotANit** closes the loop: it learns from how your team *actually* reviews code
 and folds recurring feedback back into your guidance docs, making your codebase more AI-ready.
 
-**Lightweight and dependency-light** — it gets you this *today*, with no platform
+**Lightweight** — it gets you this *today*, with no platform
 lock-in, while the big SCM providers are still building it into their own.
 
 <p align="center">
