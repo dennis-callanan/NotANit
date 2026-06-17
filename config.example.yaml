@@ -1,8 +1,9 @@
 # NotANit — example configuration
 #
-# Precedence is:  CLI flag  >  this file  >  built-in default
+# Precedence is:  environment variable  >  this file  >  built-in default
 #
-# Copy to `config.yaml`, edit, and run with:  --config config.yaml
+# Copy to `config.yaml` (read from the working directory), edit, and run:
+#   python3 -m scripts.notanit.main
 #
 # Any value may reference an environment variable with ${VAR}; it is resolved
 # from .env (then your shell) at load time. Credentials are referenced this way,

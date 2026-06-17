@@ -1,9 +1,9 @@
 """Configuration loading and defaults.
 
-Precedence for every value is: explicit CLI flag > environment variable >
-config file (``--config``) > built-in default. Nothing here is specific to any
-one organisation; org-specific values are supplied via env vars or a config
-file at runtime.
+Precedence for every value is: environment variable > config file
+(``config.yaml``) > built-in default. Nothing here is specific to any one
+organisation; org-specific values are supplied via env vars or a config file at
+runtime.
 """
 
 import os
@@ -261,7 +261,7 @@ def load_config(*, file_cfg: dict[str, Any] | None = None) -> Config:
     """Build a Config from the YAML config and built-in defaults.
 
     Resolution is: config file > built-in default. All configuration lives in the
-    file — there are no value-level CLI overrides.
+    file (with ``${VAR}`` references resolved from the environment).
 
     The config file may use ``${VAR}`` references anywhere; each is resolved from
     the environment (``.env`` first, then the shell) before this runs. Credentials

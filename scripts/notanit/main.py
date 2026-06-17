@@ -1,43 +1,25 @@
-import argparse
 import sys
 from pathlib import Path
 
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Sync repo best-practice docs from recent code-review patterns. "
-        "All settings live in the YAML config (see config.example.yaml); secret "
-        "values come from the environment / .env via ${VAR} references.",
-    )
-    parser.add_argument(
-        "--config",
-        default="config.yaml",
-        help="Path to the YAML config file (default: config.yaml).",
-    )
-    parser.add_argument(
-        "--env-file",
-        default=".env",
-        help="Path to the .env file holding secret values (default: .env). "
-        "Variables already in the environment take precedence over it.",
-    )
-    return parser
+# Fixed locations, relative to the working directory. All settings live in the
+# YAML config; secret values come from the environment / .env via ${VAR} refs.
+CONFIG_PATH = "config.yaml"
+ENV_PATH = ".env"
 
 
 def main():
-    args = build_parser().parse_args()
-
     # Load .env first so its values are visible to ${VAR} resolution in the config.
     # Exported shell vars already in the environment take precedence.
     from .dotenv import load_dotenv
 
-    load_dotenv(args.env_file)
+    load_dotenv(ENV_PATH)
 
     # Late import so config errors surface cleanly
     from .config import load_config, load_config_file
     from .pipeline import run
 
     try:
-        file_cfg = load_config_file(args.config)
+        file_cfg = load_config_file(CONFIG_PATH)
         cfg = load_config(file_cfg=file_cfg)
     except (EnvironmentError, ValueError, FileNotFoundError, RuntimeError) as e:
         print(f"[error] {e}", file=sys.stderr)

@@ -6,7 +6,7 @@
 <h1 align="center">NotANit</h1>
 
 <p align="center">
-  <em>&ldquo;Just a nit, but&hellip;&rdquo; — the comments that aren't nits become your standards.<br/>Keep your <code>AGENTS.md</code> (or any guidance doc) honest by learning from how your team <strong>actually</strong> reviews code.</em>
+  <em>&ldquo;Just a nit, but&hellip;&rdquo; — the comments that aren't nits become your standards.<br/>Keep your <code>CONTRIBUTING.md</code> (or any guidance doc) honest by learning from how your team <strong>actually</strong> reviews code.</em>
 </p>
 
 <p align="center">
@@ -19,8 +19,8 @@
 </p>
 
 <p align="center">
+  <a href="#what-it-does">What it does</a> ·
   <a href="#-quick-start">Quick start</a> ·
-  <a href="#-how-it-works">How it works</a> ·
   <a href="#%EF%B8%8F-configuration">Configuration</a> ·
   <a href="#-docker">Docker</a> ·
   <a href="#-providers">Providers</a> ·
@@ -36,15 +36,15 @@ Coding-guidance docs rot. The team agrees on a convention in code review, but th
 `AGENTS.md` / `CONTRIBUTING.md` / style guide never catches up — so the same notes
 get written by hand on every PR.
 
-**NotANit** closes that loop. Point it at a repository and it:
+**NotANit** closes that loop: it learns from how your team *actually* reviews code
+and folds the recurring feedback straight back into your guidance docs, making your codebase more AI-ready.
 
-1. 📥 **Loads** your guidance docs from a local checkout (`AGENTS.md` by default — or any files you name).
-2. 💬 **Reads** review comments from recently **merged** PRs/MRs via the GitLab or GitHub API, dropping noise (`lgtm`, `thanks`, one-liners…).
-3. 🧩 **Clusters** comments into recurring themes (testing, error handling, naming…) and keeps only themes that recur across enough PRs.
-4. 🤖 **Asks an LLM** (Anthropic API or AWS Bedrock) for **small, conservative** additions to the docs.
-5. ✍️ **Edits** the target files in place, inserting each addition under the relevant section.
+<p align="center">
+  <img src="./assets/how-it-works.svg" alt="How NotANit works: load docs, read reviews on merged PRs/MRs, cluster recurring themes, ask the LLM for small additive edits, then edit your docs in place." width="100%">
+</p>
 
-It writes only to the local doc files you name — never to your SCM host. Review the edits with `git diff` and commit them yourself.
+It reads your SCM read-only and writes only to the local doc files you name —
+never to your SCM host. Review every edit with `git diff` and commit it yourself.
 
 ---
 
@@ -113,33 +113,6 @@ relevant section heading. A run prints a summary of every change applied.
 
 ---
 
-## 🛠 How it works
-
-```
-   ┌─────────────┐   ┌──────────────┐   ┌──────────────┐   ┌─────────────┐   ┌───────────────┐
-   │  Guidance   │   │  Merged PRs  │   │   Cluster    │   │     LLM     │   │  Edit docs    │
-   │   docs      │   │  / MRs       │   │  by theme    │   │  returns    │   │  in place     │
-   │ (local)     │   │ (read-only)  │   │  + threshold │   │  additions  │   │  (git diff)   │
-   └──────┬──────┘   └──────┬───────┘   └──────┬───────┘   └──────┬──────┘   └───────┬───────┘
-          │                 │                  │                  │                  │
-          └─────────────────┴───────► clustering ►───────────────┴───────► writes ──┘
-```
-
-The pipeline lives in `scripts/notanit/`:
-
-```
-main.py          # CLI entry point, prints a summary of applied changes
-config.py        # config loading (flags > env > file > defaults) + dataclasses
-doc_loader.py    # reads target doc files from the local checkout
-scm.py           # provider-agnostic ReviewComment + client factory
-gitlab_client.py # GitLab API: merged-MR review comments (+ noise filter)
-github_client.py # GitHub API: merged-PR review + issue comments
-pipeline.py      # clustering, prompt building, applying edits, orchestration
-llm_client.py    # pluggable LLM providers (Anthropic API, AWS Bedrock)
-```
-
----
-
 ## ⚙️ Configuration
 
 **All configuration lives in one YAML file** ([`config.example.yaml`](./config.example.yaml)) —
@@ -157,7 +130,7 @@ scm:
 
 Resolution precedence (per value):
 
-> **CLI flag → YAML config (`--config`, with `${VAR}` resolved) → built-in default**
+> **environment variable → YAML config (`${VAR}` resolved) → built-in default**
 
 ### Secret values: the `.env` file
 
@@ -173,7 +146,7 @@ python3 -m scripts.notanit.main
 - `${VAR}` resolves from **`.env` first, then the real shell environment** (shell
   vars already set take precedence over `.env`).
 - [`.env.example`](./.env.example) lists every credential, so it doubles as a checklist.
-- Use `--env-file path/to/other.env` to load a different file (e.g. one per repo).
+- `.env` is read from the working directory; values already exported in your shell take precedence over it.
 - `.env` is a plain `KEY=VALUE` loader (with `#` comment lines and optional quotes) —
   keep comments on their own line, not trailing a value.
 - Write a **literal** secret into the YAML (instead of a `${VAR}` reference) and you
@@ -183,11 +156,10 @@ python3 -m scripts.notanit.main
 
 ### Settings reference
 
-All settings live in the YAML config — there are no value-level CLI flags, only
-`--config` (default `config.yaml`) and `--env-file` (default `.env`) to point at
-those files. Provider-specific LLM settings live under `llm.anthropic` /
-`llm.bedrock`; only the block matching `llm.provider` is read, so you can keep
-both populated and switch with one line.
+All settings live in the YAML config — there are no CLI flags. `config.yaml` and
+`.env` are read from the working directory. Provider-specific LLM settings live
+under `llm.anthropic` / `llm.bedrock`; only the block matching `llm.provider` is
+read, so you can keep both populated and switch with one line.
 
 | Setting (YAML key) | Default | Notes |
 | --- | --- | --- |
@@ -216,16 +188,6 @@ both populated and switch with one line.
 
 <sub>The remaining pipeline settings (themes, noise filters, `extra_guidance`, …)
 are covered under [Customisation](#-customisation).</sub>
-
-### CLI
-
-There are exactly two flags — both just locate files; every actual setting is in
-the YAML:
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--config` | `config.yaml` | Path to the YAML config file. |
-| `--env-file` | `.env` | Path to the `.env` file of secret values. |
 
 See [`config.example.yaml`](./config.example.yaml) for the full, annotated shape.
 
@@ -424,9 +386,9 @@ pipeline:
 
 ## 🔒 Safety
 
-- **Read-only** against your SCM host and against your repo.
-- The LLM is instructed to propose **only small additions/clarifications**, never to rewrite or remove existing content.
-- **All** output is staged in the output directory for human review before any doc is changed.
+- **Read-only** against your SCM host — NotANit never writes to GitLab/GitHub.
+- The LLM is instructed to make **only small additions/clarifications**, never to rewrite or remove existing content.
+- Edits are written only to the local doc files you name — nothing is pushed or committed, so you review every change with `git diff` first.
 
 ---
 

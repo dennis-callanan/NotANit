@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="392" viewBox="0 0 1280 392" role="img" aria-label="How NotANit works: load docs, read reviews, cluster themes, ask the LLM, edit docs in place">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="55%" stop-color="#131a2a"/>
+      <stop offset="100%" stop-color="#1b1033"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7c8cff"/>
+      <stop offset="50%" stop-color="#a07cff"/>
+      <stop offset="100%" stop-color="#54d6c4"/>
+    </linearGradient>
+    <linearGradient id="outAccent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a07cff"/>
+      <stop offset="100%" stop-color="#54d6c4"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .title { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-weight: 800; }
+      .h     { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-weight: 700; }
+      .sub   { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; font-weight: 500; }
+      .mono  { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-weight: 600; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="392" fill="url(#bg)"/>
+
+  <!-- subtle grid -->
+  <g stroke="#ffffff" stroke-opacity="0.04">
+    <path d="M0 80 H1280 M0 160 H1280 M0 240 H1280 M0 320 H1280"/>
+    <path d="M160 0 V392 M320 0 V392 M480 0 V392 M640 0 V392 M800 0 V392 M960 0 V392 M1120 0 V392"/>
+  </g>
+
+  <!-- heading -->
+  <rect x="40" y="34" width="6" height="26" rx="3" fill="url(#accent)" filter="url(#soft)"/>
+  <text x="62" y="55" class="title" font-size="26" fill="#f0f3ff">From review comments to better docs</text>
+
+  <!-- connecting flow line -->
+  <line x1="248" y1="196" x2="1032" y2="196" stroke="#33406b" stroke-width="2" stroke-dasharray="2 6" opacity="0.7"/>
+
+  <!-- arrows (drawn, so they render without depending on a font glyph) -->
+  <g fill="#54d6c4">
+    <polygon points="262,188 276,196 262,204"/>
+    <polygon points="510,188 524,196 510,204"/>
+    <polygon points="758,188 772,196 758,204"/>
+    <polygon points="1006,188 1020,196 1006,204"/>
+  </g>
+
+  <!-- ============ cards ============ -->
+  <!-- card template: x = 40 + n*248, width 208, y 100, h 188 -->
+
+  <!-- 1. Load docs -->
+  <g transform="translate(40,100)">
+    <rect width="208" height="188" rx="16" fill="#141c30" stroke="#2a3354"/>
+    <circle cx="104" cy="0" r="20" fill="#1e2740" stroke="url(#accent)" stroke-width="2"/>
+    <text x="104" y="6" text-anchor="middle" class="h" font-size="18" fill="#8fa0ff">1</text>
+    <text x="104" y="64" text-anchor="middle" class="h" font-size="19" fill="#eaf0ff">Load docs</text>
+    <g class="sub" font-size="14" fill="#aab4d4" text-anchor="middle">
+      <text x="104" y="100">Your AGENTS.md and</text>
+      <text x="104" y="122">guidance files, from</text>
+      <text x="104" y="144">a local checkout</text>
+    </g>
+  </g>
+
+  <!-- 2. Read reviews -->
+  <g transform="translate(288,100)">
+    <rect width="208" height="188" rx="16" fill="#141c30" stroke="#2a3354"/>
+    <circle cx="104" cy="0" r="20" fill="#1e2740" stroke="url(#accent)" stroke-width="2"/>
+    <text x="104" y="6" text-anchor="middle" class="h" font-size="18" fill="#8fa0ff">2</text>
+    <text x="104" y="64" text-anchor="middle" class="h" font-size="19" fill="#eaf0ff">Read reviews</text>
+    <g class="sub" font-size="14" fill="#aab4d4" text-anchor="middle">
+      <text x="104" y="100">Comments on merged</text>
+      <text x="104" y="122">PRs / MRs via GitLab</text>
+      <text x="104" y="144">or GitHub (read-only)</text>
+    </g>
+  </g>
+
+  <!-- 3. Cluster themes -->
+  <g transform="translate(536,100)">
+    <rect width="208" height="188" rx="16" fill="#141c30" stroke="#2a3354"/>
+    <circle cx="104" cy="0" r="20" fill="#1e2740" stroke="url(#accent)" stroke-width="2"/>
+    <text x="104" y="6" text-anchor="middle" class="h" font-size="18" fill="#8fa0ff">3</text>
+    <text x="104" y="64" text-anchor="middle" class="h" font-size="19" fill="#eaf0ff">Cluster themes</text>
+    <g class="sub" font-size="14" fill="#aab4d4" text-anchor="middle">
+      <text x="104" y="100">Group recurring</text>
+      <text x="104" y="122">feedback; keep what</text>
+      <text x="104" y="144">repeats often enough</text>
+    </g>
+  </g>
+
+  <!-- 4. Ask the LLM -->
+  <g transform="translate(784,100)">
+    <rect width="208" height="188" rx="16" fill="#141c30" stroke="#2a3354"/>
+    <circle cx="104" cy="0" r="20" fill="#1e2740" stroke="url(#accent)" stroke-width="2"/>
+    <text x="104" y="6" text-anchor="middle" class="h" font-size="18" fill="#8fa0ff">4</text>
+    <text x="104" y="64" text-anchor="middle" class="h" font-size="19" fill="#eaf0ff">Ask the LLM</text>
+    <g class="sub" font-size="14" fill="#aab4d4" text-anchor="middle">
+      <text x="104" y="100">Anthropic or Bedrock</text>
+      <text x="104" y="122">drafts small, additive</text>
+      <text x="104" y="144">edits only</text>
+    </g>
+  </g>
+
+  <!-- 5. Edit in place (output — accent) -->
+  <g transform="translate(1032,100)">
+    <rect width="208" height="188" rx="16" fill="#1c1838" stroke="#5b4b8a"/>
+    <circle cx="104" cy="0" r="20" fill="#23203f" stroke="url(#outAccent)" stroke-width="2"/>
+    <text x="104" y="6" text-anchor="middle" class="h" font-size="18" fill="#c7b6ff">5</text>
+    <text x="104" y="64" text-anchor="middle" class="h" font-size="19" fill="#f2ecff">Edit in place</text>
+    <g class="sub" font-size="14" fill="#c3b9e6" text-anchor="middle">
+      <text x="104" y="100">Writes additions into</text>
+      <text x="104" y="122">your docs &#8212; review</text>
+      <text x="104" y="144">with git diff</text>
+    </g>
+  </g>
+
+  <!-- footer strip -->
+  <g class="mono" font-size="14">
+    <text x="640" y="356" text-anchor="middle" fill="#6b7699">
+      read-only on your SCM
+      <tspan fill="#33406b">&#160;&#160;&#183;&#160;&#160;</tspan>
+      <tspan fill="#8fa0ff">edits land in your local docs</tspan>
+      <tspan fill="#33406b">&#160;&#160;&#183;&#160;&#160;</tspan>
+      you review &amp; commit
+    </text>
+  </g>
+</svg>
