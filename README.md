@@ -6,7 +6,7 @@
 <h1 align="center">NotANit</h1>
 
 <p align="center">
-  <em>&ldquo;Just a nit, but&hellip;&rdquo; — the comments that aren't nits become your standards.<br/>Keep your <code>CONTRIBUTING.md</code> (or any guidance doc) honest by learning from how your team <strong>actually</strong> reviews code.</em>
+Keep your <code>CONTRIBUTING.md</code> (or any guidance doc) honest by learning from how your team <strong>actually</strong> reviews code.</em>
 </p>
 
 <p align="center">
@@ -14,8 +14,6 @@
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-22c55e">
   <img alt="SCM providers" src="https://img.shields.io/badge/SCM-GitLab%20%7C%20GitHub-fc6d26?logo=gitlab&logoColor=white">
   <img alt="LLM providers" src="https://img.shields.io/badge/LLM-Anthropic%20%7C%20Bedrock-a07cff">
-  <img alt="Read-only" src="https://img.shields.io/badge/repo%20access-read--only-0ea5e9">
-  <img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-ff69b4">
 </p>
 
 <p align="center">
@@ -32,12 +30,15 @@
 
 ## What it does
 
-Coding-guidance docs rot. The team agrees on a convention in code review, but the
+Coding-guidance docs rot. The team agrees on a convention in review, but the
 `AGENTS.md` / `CONTRIBUTING.md` / style guide never catches up — so the same notes
 get written by hand on every PR.
 
-**NotANit** closes that loop: it learns from how your team *actually* reviews code
-and folds the recurring feedback straight back into your guidance docs, making your codebase more AI-ready.
+**NotANit** closes the loop: it learns from how your team *actually* reviews code
+and folds recurring feedback back into your guidance docs, making your codebase more AI-ready.
+
+**Lightweight and dependency-light** — it gets you this *today*, with no platform
+lock-in, while the big SCM providers are still building it into their own.
 
 <p align="center">
   <img src="./assets/how-it-works.svg" alt="How NotANit works: load docs, read reviews on merged PRs/MRs, cluster recurring themes, ask the LLM for small additive edits, then edit your docs in place." width="100%">
@@ -50,20 +51,19 @@ never to your SCM host. Review every edit with `git diff` and commit it yourself
 
 ## ✨ Highlights
 
+- **Dependency-light** — `requests` + `pyyaml` and you're running (`boto3` only for Bedrock); `.env` loading is built in.
 - **Provider-agnostic** — GitLab *and* GitHub out of the box; one factory away from more.
-- **Bring your own LLM** — Anthropic Messages API (zero extra deps) or AWS Bedrock (with optional role assumption).
-- **One config file tells the story** — a single YAML holds every setting, with `${VAR}` references pulling secret *values* from `.env`. Themes, noise filters, target docs, and even the prompt guidance are all configurable.
-- **Works with any doc layout** — `AGENTS.md`, `CONTRIBUTING.md`, `docs/style/*.md`, whatever your team uses.
+- **Bring your own LLM** — Anthropic Messages API or AWS Bedrock (with optional role assumption).
+- **One config file** — a single YAML holds every setting; `${VAR}` references pull secret *values* from `.env`. Themes, noise filters, target docs, and prompt guidance all configurable.
 - **Safe by design** — read-only against your SCM; the LLM is constrained to additive edits you review before committing.
 
 ---
 
 ## 🚀 Quick start
 
-You need two files — a `config.yaml` (all settings) and a `.env` (the secret
-values the config references) — plus the doc file(s) you want to update on a
-local path NotANit can read and write. Those files usually live in a checkout
-of the target repo, but NotANit only ever touches the paths listed in
+You need two files — `config.yaml` (settings) and `.env` (the secret values it
+references) — plus the doc file(s) to update, on a local path NotANit can read and
+write. Usually a checkout of the target repo, but NotANit only touches the paths in
 `target_files`.
 
 ### Run with Docker (recommended — no clone, no Python)
@@ -119,20 +119,18 @@ relevant section heading. A run prints a summary of every change applied.
 
 ## ⚙️ Configuration
 
-**All configuration lives in one YAML file** ([`config.example.yaml`](./config.example.yaml)),
-and it ships with sensible defaults — copy it, fill in your connection details, and
-you're running. Settings come in two groups:
+**All configuration lives in one YAML file** ([`config.example.yaml`](./config.example.yaml))
+with sensible defaults — copy it, fill in your connection details, and you're running.
+Settings come in two groups:
 
 - **Controls** (`pipeline`) — the dials that shape a run: how far back to look,
-  how many edits to make, what counts as signal vs noise. The defaults are
-  sensible; reach for these as you tune.
+  how many edits to make, what counts as signal vs noise. Reach for these as you tune.
 - **Integrations** (`scm`, `llm`) — the systems NotANit connects to: SCM URL,
-  models, keys, tokens. Set these once for your environment.
+  models, keys, tokens. Set once for your environment.
 
 Any value may reference an environment variable with **`${VAR}`**, resolved at load
-time (precedence: **environment variable → YAML config → built-in default**).
-Credentials are referenced this way, so the config documents what each provider
-needs while the secret *values* stay in `.env`:
+time (precedence: **environment variable → YAML config → built-in default**). Credentials
+are referenced this way, so the secret *values* stay in `.env`:
 
 ```yaml
 scm:
@@ -192,8 +190,8 @@ See [`config.example.yaml`](./config.example.yaml) for the full, annotated shape
 
 ### Secret values: the `.env` file
 
-The mechanics behind those `${VAR}` references. `.env` is just a convenient,
-gitignored place to keep secret values so you don't have to `export` them by hand:
+The mechanics behind those `${VAR}` references. `.env` is a gitignored place to keep
+secret values so you don't have to `export` them by hand:
 
 ```bash
 cp .env.example .env        # fill in the secret values
@@ -279,9 +277,9 @@ python3 -m scripts.notanit.main      # reads ./config.yaml and ./.env
 ## 🐳 Docker
 
 Run NotANit without a local Python setup. The image contains only the code;
-your **config**, **secrets**, and the **target doc files** are supplied at run time, so
-nothing sensitive is ever baked into the image. Mount any folder containing the
-docs you want updated to `/docs` — a checkout of the target repo is the usual one.
+your **config**, **secrets**, and **target doc files** are supplied at run time, so
+nothing sensitive is baked in. Mount the folder holding the docs to update at
+`/docs` — usually a checkout of the target repo.
 
 ```bash
 docker run --rm --env-file .env \
@@ -397,7 +395,7 @@ registering it in the `_PROVIDERS` map.
 ## 🎛 Customisation
 
 Different teams write standards differently — so the analysis is fully tunable
-via the config file (no code edits needed):
+via the config (no code edits):
 
 - **`target_files`** — point at whatever docs your team keeps: `AGENTS.md`,
   `CONTRIBUTING.md`, `docs/engineering/*.md`, multiple files at once.
@@ -450,10 +448,9 @@ pipeline:
 
 ## 🤝 Contributing
 
-Issues and PRs are welcome — especially new SCM/LLM providers and better theme
-clustering. The codebase is small, dependency-light, and provider boundaries are
-clean by design. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for dev setup and how
-images are published.
+Issues and PRs welcome — especially new SCM/LLM providers and better theme
+clustering. The codebase is small and provider boundaries are clean by design.
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for dev setup and how images are published.
 
 ## 📄 License
 
