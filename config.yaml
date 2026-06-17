@@ -11,20 +11,16 @@
 
 scm:
   provider: gitlab            # "gitlab" or "github"
-  url: https://gitlab.com     # GitHub: https://api.github.com (or .../api/v3 for Enterprise)
-  project_path: mygroup/myrepo
+  url: https://scm.lup.ie/     # GitHub: https://api.github.com (or .../api/v3 for Enterprise)
+  project_path: engineering/golang/apps/skills-app
   token: ${SCM_TOKEN}         # value from .env (GitLab: read_api, GitHub: repo read)
-  # TLS verification. Behind a corporate TLS-inspection proxy (Zscaler, Netskope,
-  # etc.) you'll hit "self-signed certificate in certificate chain" — point this at
-  # the proxy's root CA so the default bundle trusts it:
-  # ca_bundle: /path/to/corporate-ca-bundle.pem
-  # verify_tls: false         # last resort: skip verification entirely (insecure)
+  ca_bundle: .certs/combined-ca.pem   # public roots + LearnUpon system roots (TLS proxy)
 
 llm:
   # `provider` is OPTIONAL: if you configure only one of the blocks below, it's
   # inferred. It's only needed to disambiguate — like here, where both blocks are
   # filled in so you can switch between them by changing this one line.
-  provider: anthropic         # "anthropic" or "bedrock"
+  provider: bedrock         # "anthropic" or "bedrock"
   max_tokens: 4096            # shared across providers
 
   # Settings for the Anthropic direct API.
@@ -36,20 +32,20 @@ llm:
 
   # Settings for AWS Bedrock.
   bedrock:
-    model_id: us.anthropic.claude-sonnet-4-6   # cross-region inference profile
-    aws_region: us-east-1
-    aws_role_arn: ""          # set to assume a role before calling Bedrock (optional)
+    model_id: eu.anthropic.claude-sonnet-4-6   # cross-region inference profile
+    aws_region: eu-west-1                       # must be an EU region to match the eu.* profile
+    aws_role_arn: arn:aws:iam::909596555363:role/lu-ai-assistant-api-access          # set to assume a role before calling Bedrock (optional)
     aws_access_key_id: ${AWS_ACCESS_KEY_ID}          # value from .env
     aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}  # value from .env
     aws_session_token: ${AWS_SESSION_TOKEN}          # only for temporary (ASIA...) creds
-    # api_version: bedrock-2023-05-31
+    api_version: bedrock-2023-05-31
 
 pipeline:
   repo_root: .                # local checkout of the repo whose docs are read/updated
                               # (in Docker this is the mounted path, e.g. /repo)
   weeks: 8                    # how far back to look
-  target_files:              # the guidance docs to read & edit in place
-    - AGENTS.md
+  target_files:               # the guidance docs to read & edit in place
+    - /Users/dennis/lu/lu_world/golang_apps/skills-app/AGENTS.md
   max_changes: 3              # most edits to apply per run
   min_mr_occurrences: 3       # a theme must recur across at least this many MRs/PRs
   min_comment_length: 20      # comments shorter than this are dropped as noise

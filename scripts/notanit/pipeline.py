@@ -3,7 +3,6 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from datetime import datetime
 
 from .config import Config
 from .scm import ReviewComment, build_scm_client
@@ -81,7 +80,7 @@ def _summarise_clusters(
 def _build_prompt(
     docs: dict[str, str],
     cluster_summaries: list[dict],
-    max_proposals: int,
+    max_changes: int,
     extra_guidance: str = "",
 ) -> str:
     docs_section = "\n\n".join(
@@ -117,18 +116,18 @@ Each theme met a minimum threshold of appearances across multiple MRs and review
 
 1. For each recurring theme, decide:
    - Is it already clearly covered in the current guidance? → skip it
-   - Is it missing entirely? → propose an addition
-   - Is it only vaguely covered? → propose a small clarification
+   - Is it missing entirely? → add it
+   - Is it only vaguely covered? → add a small clarification
 
-2. Propose at most {max_proposals} changes total.
+2. Make at most {max_changes} changes total.
 
-3. Each proposed change must:
+3. Each change must:
    - Be a small addition or clarification only (a bullet point or a short sentence)
    - Not rewrite or remove existing content
    - Preserve the existing tone, style, and structure of the file
    - Be justified by repeated evidence across multiple MRs
 
-4. Target files you may suggest changes for: {target_files}
+4. Target files you may change: {target_files}
 {extra_section}
 
 ## Output format
@@ -136,90 +135,104 @@ Each theme met a minimum threshold of appearances across multiple MRs and review
 Return ONLY valid JSON matching this exact schema. No prose before or after.
 
 {{
-  "proposals": [
+  "changes": [
     {{
       "target_file": "<relative path to file>",
       "target_section": "<exact section heading, e.g. ## Testing>",
-      "proposed_text": "<the exact markdown text to add>",
-      "rationale": "<one sentence explaining why this is needed>",
-      "evidence_themes": ["<theme name>"],
-      "evidence_summary": "<e.g. appeared in 9 MRs across 4 reviewers>",
-      "confidence": <float 0.0–1.0>
+      "text": "<the exact markdown text to add>",
+      "summary": "<one short sentence describing the change>"
     }}
   ]
 }}"""
 
 
 # ---------------------------------------------------------------------------
-# Patch generation
+# Applying changes directly to the target files
 # ---------------------------------------------------------------------------
 
-def _generate_patch(
-    proposals: list[dict],
+def _insert_under_section(content: str, target_section: str, text: str) -> str:
+    """Return ``content`` with ``text`` inserted under ``target_section``.
+
+    Insertion goes right after the section heading (skipping any blank lines that
+    follow it). If the heading isn't found, the text is appended to the end of the
+    file. Blank lines are kept around the inserted block so the markdown stays well
+    formed.
+    """
+    lines = content.splitlines(keepends=True)
+
+    section_idx = None
+    for i, line in enumerate(lines):
+        if line.strip() == target_section.strip():
+            section_idx = i
+            break
+
+    if section_idx is None:
+        insert_idx = len(lines)
+    else:
+        insert_idx = section_idx + 1
+        while insert_idx < len(lines) and lines[insert_idx].strip() == "":
+            insert_idx += 1
+
+    block = text.strip() + "\n"
+    # Keep a blank line before the block if the preceding line isn't already blank.
+    if insert_idx > 0 and lines[insert_idx - 1].strip() != "":
+        block = "\n" + block
+    # Keep a blank line after the block if there's following content.
+    if insert_idx < len(lines) and lines[insert_idx].strip() != "":
+        block = block + "\n"
+
+    new_lines = lines[:insert_idx] + [block] + lines[insert_idx:]
+    return "".join(new_lines)
+
+
+def _resolve_target(target_file: str, doc_keys: list[str]) -> str | None:
+    """Map the LLM's ``target_file`` to one of the loaded doc keys.
+
+    The doc keys are whatever was listed in ``target_files`` (often absolute
+    paths), but the LLM tends to answer with just the basename. Match leniently:
+    exact key, then unique basename, then unique suffix.
+    """
+    if target_file in doc_keys:
+        return target_file
+    name = Path(target_file).name
+    by_name = [k for k in doc_keys if Path(k).name == name]
+    if len(by_name) == 1:
+        return by_name[0]
+    by_suffix = [k for k in doc_keys if k.endswith(target_file) or target_file.endswith(k)]
+    if len(by_suffix) == 1:
+        return by_suffix[0]
+    return None
+
+
+def _apply_changes(
+    changes: list[dict],
     docs: dict[str, str],
     repo_root: Path,
-) -> str:
-    """
-    Produces a unified-diff-style patch string.
-    Appends proposed text under the target section heading.
-    """
-    lines = []
+) -> list[dict]:
+    """Write each change directly into its target file. Returns the changes that
+    were actually applied (unresolvable target files are skipped)."""
+    updated = dict(docs)
+    applied: list[dict] = []
 
-    for proposal in proposals:
-        target_file = proposal["target_file"]
-        target_section = proposal["target_section"]
-        proposed_text = proposal["proposed_text"].strip()
-
-        if target_file not in docs:
+    for change in changes:
+        key = _resolve_target(change["target_file"], list(updated.keys()))
+        if key is None:
+            print(f"  [skip] LLM named an unknown target file: {change['target_file']}")
             continue
-
-        original = docs[target_file]
-        original_lines = original.splitlines(keepends=True)
-
-        # Find the target section
-        section_line_idx = None
-        for i, line in enumerate(original_lines):
-            if line.strip() == target_section.strip():
-                section_line_idx = i
-                break
-
-        if section_line_idx is None:
-            # Section not found — append to end of file
-            insert_idx = len(original_lines)
-        else:
-            # Insert after the section heading (and any blank line following it)
-            insert_idx = section_line_idx + 1
-            while insert_idx < len(original_lines) and original_lines[
-                insert_idx
-            ].strip() == "":
-                insert_idx += 1
-
-        new_lines = (
-            original_lines[:insert_idx]
-            + [proposed_text + "\n"]
-            + original_lines[insert_idx:]
+        updated[key] = _insert_under_section(
+            updated[key], change["target_section"], change["text"]
         )
+        # Normalise so the write-back loop and summary use the resolved key.
+        change["target_file"] = key
+        applied.append(change)
 
-        lines.append(f"--- a/{target_file}")
-        lines.append(f"+++ b/{target_file}")
+    # Write each touched file once, after all its edits are merged in.
+    for target_file in {c["target_file"] for c in applied}:
+        full_path = repo_root / target_file
+        full_path.write_text(updated[target_file], encoding="utf-8")
+        print(f"  [write] {full_path}")
 
-        # Show context around insertion
-        context_start = max(0, insert_idx - 3)
-        context_end = min(len(original_lines), insert_idx + 3)
-
-        lines.append(
-            f"@@ -{context_start + 1},{context_end - context_start} "
-            f"+{context_start + 1},{context_end - context_start + 1} @@"
-        )
-
-        for i in range(context_start, context_end):
-            if i == insert_idx:
-                lines.append(f"+{proposed_text}")
-            lines.append(f" {original_lines[i].rstrip()}")
-
-        lines.append("")
-
-    return "\n".join(lines)
+    return applied
 
 
 # ---------------------------------------------------------------------------
@@ -228,10 +241,8 @@ def _generate_patch(
 
 @dataclass
 class PipelineResult:
-    proposals: list[dict]
-    patch: str
+    applied_changes: list[dict]
     cluster_summaries: list[dict]
-    raw_llm_response: str
 
 
 def run(cfg: Config, repo_root: Path) -> PipelineResult:
@@ -255,16 +266,14 @@ def run(cfg: Config, repo_root: Path) -> PipelineResult:
     print(f"  {len(summaries)} themes met the threshold")
 
     if not summaries:
-        print("  No recurring themes found. Nothing to propose.")
-        return PipelineResult(
-            proposals=[], patch="", cluster_summaries=[], raw_llm_response=""
-        )
+        print("  No recurring themes found. Nothing to change.")
+        return PipelineResult(applied_changes=[], cluster_summaries=[])
 
     print("\n[4/5] Calling LLM...")
     prompt = _build_prompt(
         docs,
         summaries,
-        cfg.pipeline.max_proposals,
+        cfg.pipeline.max_changes,
         cfg.pipeline.extra_guidance,
     )
     raw_response = call_llm(cfg.llm, prompt)
@@ -277,20 +286,18 @@ def run(cfg: Config, repo_root: Path) -> PipelineResult:
 
     try:
         parsed = json.loads(json_text)
-        proposals = parsed.get("proposals", [])
+        changes = parsed.get("changes", [])
     except json.JSONDecodeError as e:
         raise RuntimeError(
             f"LLM did not return valid JSON.\nError: {e}\n\nRaw:\n{raw_response}"
         )
 
-    print(f"  LLM proposed {len(proposals)} change(s)")
+    print(f"  LLM returned {len(changes)} change(s)")
 
-    print("\n[5/5] Generating patch...")
-    patch = _generate_patch(proposals, docs, repo_root)
+    print("\n[5/5] Applying changes to files...")
+    applied = _apply_changes(changes, docs, repo_root)
 
     return PipelineResult(
-        proposals=proposals,
-        patch=patch,
+        applied_changes=applied,
         cluster_summaries=summaries,
-        raw_llm_response=raw_response,
     )

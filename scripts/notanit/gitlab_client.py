@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-from .scm import ReviewComment, is_noise
+from .scm import ReviewComment, is_noise, raise_for_auth
 
 
 class GitLabClient:
@@ -13,6 +13,7 @@ class GitLabClient:
         project_path: str,
         noise_patterns: list[str],
         min_comment_length: int,
+        verify: bool | str = True,
     ):
         self.base_url = url.rstrip("/")
         self.headers = {"PRIVATE-TOKEN": token}
@@ -20,6 +21,7 @@ class GitLabClient:
         self.project_id = requests.utils.quote(project_path, safe="")
         self.noise_patterns = noise_patterns
         self.min_comment_length = min_comment_length
+        self.verify = verify
 
     def _get(self, path: str, params: dict | None = None) -> list | dict:
         url = f"{self.base_url}/api/v4/{path}"
@@ -30,7 +32,8 @@ class GitLabClient:
 
         while True:
             params["page"] = page
-            resp = requests.get(url, headers=self.headers, params=params)
+            resp = requests.get(url, headers=self.headers, params=params, verify=self.verify)
+            raise_for_auth(resp, "GitLab")
             resp.raise_for_status()
             data = resp.json()
 

@@ -22,6 +22,7 @@
   <a href="#-quick-start">Quick start</a> ·
   <a href="#-how-it-works">How it works</a> ·
   <a href="#%EF%B8%8F-configuration">Configuration</a> ·
+  <a href="#-docker">Docker</a> ·
   <a href="#-providers">Providers</a> ·
   <a href="#-customisation">Customisation</a> ·
   <a href="#-safety">Safety</a>
@@ -40,10 +41,10 @@ get written by hand on every PR.
 1. 📥 **Loads** your guidance docs from a local checkout (`AGENTS.md` by default — or any files you name).
 2. 💬 **Reads** review comments from recently **merged** PRs/MRs via the GitLab or GitHub API, dropping noise (`lgtm`, `thanks`, one-liners…).
 3. 🧩 **Clusters** comments into recurring themes (testing, error handling, naming…) and keeps only themes that recur across enough PRs.
-4. 🤖 **Asks an LLM** (Anthropic API or AWS Bedrock) to propose **small, conservative** additions to the docs.
-5. 📄 **Writes** an evidence report, raw proposals, and a preview diff to an output directory — **for you to review**.
+4. 🤖 **Asks an LLM** (Anthropic API or AWS Bedrock) for **small, conservative** additions to the docs.
+5. ✍️ **Edits** the target files in place, inserting each addition under the relevant section.
 
-It **never** writes to your repo or to your SCM host. Every output is staged for a human.
+It writes only to the local doc files you name — never to your SCM host. Review the edits with `git diff` and commit them yourself.
 
 ---
 
@@ -51,52 +52,64 @@ It **never** writes to your repo or to your SCM host. Every output is staged for
 
 - **Provider-agnostic** — GitLab *and* GitHub out of the box; one factory away from more.
 - **Bring your own LLM** — Anthropic Messages API (zero extra deps) or AWS Bedrock (with optional role assumption).
-- **Configure everything** — flags, env vars, or a JSON/YAML config file, with clear precedence. Themes, noise filters, target docs, and even the prompt guidance are all configurable.
+- **One config file tells the story** — a single YAML holds every setting, with `${VAR}` references pulling secret *values* from `.env`. Themes, noise filters, target docs, and even the prompt guidance are all configurable.
 - **Works with any doc layout** — `AGENTS.md`, `CONTRIBUTING.md`, `docs/style/*.md`, whatever your team uses.
-- **Safe by design** — read-only against your repo and SCM; the LLM is constrained to additive suggestions.
+- **Safe by design** — read-only against your SCM; the LLM is constrained to additive edits you review before committing.
 
 ---
 
 ## 🚀 Quick start
 
-> Run from the project root so the package imports resolve.
+You need two files — a `config.yaml` (all settings) and a `.env` (the secret
+values the config references) — plus a local clone of the repo whose docs you
+want to update.
+
+### Run with Docker (recommended — no clone, no Python)
+
+Pulls a prebuilt image from GHCR; nothing to build.
 
 ```bash
-git clone https://github.com/<your-org>/notanit.git
-cd notanit
-pip install -r requirements.txt
+# 1. Grab the config + secrets templates (no need to clone this project)
+curl -fsSL https://raw.githubusercontent.com/<your-org>/notanit/main/config.example.yaml -o config.yaml
+curl -fsSL https://raw.githubusercontent.com/<your-org>/notanit/main/.env.example -o .env
+#    edit config.yaml  -> set scm.project_path and `pipeline.repo_root: /repo`
+#    edit .env         -> fill in the secret values
 
-# --- credentials (see Configuration below) ---
-export SCM_TOKEN=<your read-only SCM token>      # GitLab read_api / GitHub repo:read
-export ANTHROPIC_API_KEY=<your anthropic key>    # or use the Bedrock provider
-
-# --- a local clone of the repo whose docs you want to update ---
+# 2. Clone the repo you want to analyse
 git clone https://github.com/acme/widgets.git /tmp/widgets
 
-# --- run ---
-python3 -m scripts.notanit.main \
-  --scm github \
-  --project acme/widgets \
-  --repo-root /tmp/widgets \
-  --target-files AGENTS.md \
-  --weeks 8
+# 3. Run — mount config + repo, inject secrets via --env-file
+docker run --rm --env-file .env \
+  -v "$PWD/config.yaml:/app/config.yaml:ro" \
+  -v "/tmp/widgets:/repo" \
+  ghcr.io/<your-org>/notanit:latest
 ```
 
-Prefer a file over flags? Copy [`config.example.yaml`](./config.example.yaml) to
-`config.yaml`, edit it, and run with `--config config.yaml`.
+The doc files under `/tmp/widgets` are edited in place on your host. See [Docker](#-docker)
+for the `docker compose` one-liner and how the image is published.
+
+### Run with Python
+
+```bash
+git clone https://github.com/<your-org>/notanit.git && cd notanit
+pip install -r requirements.txt
+
+git clone https://github.com/acme/widgets.git /tmp/widgets   # the repo to analyse
+cp config.example.yaml config.yaml   # set scm.project_path and `repo_root: /tmp/widgets`
+cp .env.example .env                 # fill in the secret values
+
+python3 -m scripts.notanit.main      # reads ./config.yaml and ./.env by default
+```
+
+All settings live in `config.yaml`; `${VAR}` references pull secret values from `.env`.
 
 ### Output
 
-Written to `<repo-root>/<output-dir>/` (default `proposals/`):
+NotANit edits the `target_files` in place — each addition is inserted under the
+relevant section heading. A run prints a summary of every change applied.
 
-| File | What it is |
-| --- | --- |
-| `review-evidence-<date>.md` | Human-readable report: each proposal with rationale, evidence, confidence, and the themes analysed. **Start here.** |
-| `proposals-<date>.json` | Raw structured proposals. |
-| `best-practices-<date>.patch` | A readable **preview** of where text would be inserted. |
-
-> **The `.patch` is a preview, not a guaranteed `git apply`-able patch.** Review the
-> evidence report and edit the docs yourself.
+> **Review before committing.** The edits are written straight to your local doc
+> files; inspect them with `git diff` and commit (or discard) yourself.
 
 ---
 
@@ -104,9 +117,9 @@ Written to `<repo-root>/<output-dir>/` (default `proposals/`):
 
 ```
    ┌─────────────┐   ┌──────────────┐   ┌──────────────┐   ┌─────────────┐   ┌───────────────┐
-   │  Guidance   │   │  Merged PRs  │   │   Cluster    │   │     LLM     │   │   Proposals   │
-   │   docs      │   │  / MRs       │   │  by theme    │   │  proposes   │   │  + evidence   │
-   │ (local)     │   │ (read-only)  │   │  + threshold │   │  additions  │   │  (for review) │
+   │  Guidance   │   │  Merged PRs  │   │   Cluster    │   │     LLM     │   │  Edit docs    │
+   │   docs      │   │  / MRs       │   │  by theme    │   │  returns    │   │  in place     │
+   │ (local)     │   │ (read-only)  │   │  + threshold │   │  additions  │   │  (git diff)   │
    └──────┬──────┘   └──────┬───────┘   └──────┬───────┘   └──────┬──────┘   └───────┬───────┘
           │                 │                  │                  │                  │
           └─────────────────┴───────► clustering ►───────────────┴───────► writes ──┘
@@ -115,13 +128,13 @@ Written to `<repo-root>/<output-dir>/` (default `proposals/`):
 The pipeline lives in `scripts/notanit/`:
 
 ```
-main.py          # CLI entry point, writes output artefacts
+main.py          # CLI entry point, prints a summary of applied changes
 config.py        # config loading (flags > env > file > defaults) + dataclasses
 doc_loader.py    # reads target doc files from the local checkout
 scm.py           # provider-agnostic ReviewComment + client factory
 gitlab_client.py # GitLab API: merged-MR review comments (+ noise filter)
 github_client.py # GitHub API: merged-PR review + issue comments
-pipeline.py      # clustering, prompt building, patch generation, orchestration
+pipeline.py      # clustering, prompt building, applying edits, orchestration
 llm_client.py    # pluggable LLM providers (Anthropic API, AWS Bedrock)
 ```
 
@@ -129,62 +142,220 @@ llm_client.py    # pluggable LLM providers (Anthropic API, AWS Bedrock)
 
 ## ⚙️ Configuration
 
-Every value resolves with this precedence:
+**All configuration lives in one YAML file** ([`config.example.yaml`](./config.example.yaml)) —
+it's the single place that tells the whole story of a run. Any value may reference
+an environment variable with **`${VAR}`**, resolved at load time. Credentials are
+referenced this way, so the config documents what each provider needs while the
+secret *values* stay in `.env`:
 
-> **CLI flag → environment variable → config file (`--config`) → built-in default**
+```yaml
+scm:
+  provider: github
+  project_path: acme/widgets
+  token: ${SCM_TOKEN}          # value comes from .env / your shell
+```
 
-### CLI flags
+Resolution precedence (per value):
+
+> **CLI flag → YAML config (`--config`, with `${VAR}` resolved) → built-in default**
+
+### Secret values: the `.env` file
+
+`${VAR}` references resolve from your shell environment — and `.env` is just a
+convenient, gitignored place to put those values so you don't have to `export`
+them by hand:
+
+```bash
+cp .env.example .env        # fill in the secret values
+python3 -m scripts.notanit.main
+```
+
+- `${VAR}` resolves from **`.env` first, then the real shell environment** (shell
+  vars already set take precedence over `.env`).
+- [`.env.example`](./.env.example) lists every credential, so it doubles as a checklist.
+- Use `--env-file path/to/other.env` to load a different file (e.g. one per repo).
+- `.env` is a plain `KEY=VALUE` loader (with `#` comment lines and optional quotes) —
+  keep comments on their own line, not trailing a value.
+- Write a **literal** secret into the YAML (instead of a `${VAR}` reference) and you
+  get a **warning** — it's a credential about to be committed.
+- If you omit a credential field from the YAML entirely, its conventional env var
+  (`SCM_TOKEN`, `ANTHROPIC_API_KEY`, `AWS_*`) is still used as a fallback.
+
+### Settings reference
+
+All settings live in the YAML config — there are no value-level CLI flags, only
+`--config` (default `config.yaml`) and `--env-file` (default `.env`) to point at
+those files. Provider-specific LLM settings live under `llm.anthropic` /
+`llm.bedrock`; only the block matching `llm.provider` is read, so you can keep
+both populated and switch with one line.
+
+| Setting (YAML key) | Default | Notes |
+| --- | --- | --- |
+| `scm.provider` | `gitlab` | `gitlab` or `github`. |
+| `scm.url` | per provider | API base URL (see [Providers](#-providers)). |
+| `scm.project_path` | *(required)* | `group/repo` or `owner/repo`. |
+| `scm.token` | — | **Credential** → `${SCM_TOKEN}` (or `GITLAB_TOKEN` / `GITHUB_TOKEN`). |
+| `llm.provider` | inferred | Selects the active block. **Optional** — inferred when you configure only one of `llm.anthropic` / `llm.bedrock`; required only if both are populated. |
+| `llm.max_tokens` | `4096` | Max output tokens (shared). |
+| `llm.anthropic.model_id` | `claude-sonnet-4-6` | Anthropic model ID. |
+| `llm.anthropic.api_key` | — | **Credential** → `${ANTHROPIC_API_KEY}`. |
+| `llm.anthropic.api_base` | `https://api.anthropic.com` | Override for proxies/gateways. |
+| `llm.anthropic.api_version` | `2023-06-01` | Anthropic API version header. |
+| `llm.bedrock.model_id` | `us.anthropic.claude-sonnet-4-6` | Bedrock model / inference-profile ID. |
+| `llm.bedrock.aws_region` | `us-east-1` | Bedrock region. |
+| `llm.bedrock.aws_role_arn` | — | Role assumed before the call (optional). |
+| `llm.bedrock.aws_access_key_id` | — | **Credential** → `${AWS_ACCESS_KEY_ID}`. |
+| `llm.bedrock.aws_secret_access_key` | — | **Credential** → `${AWS_SECRET_ACCESS_KEY}`. |
+| `llm.bedrock.aws_session_token` | — | **Credential** → `${AWS_SESSION_TOKEN}`; only for temporary (`ASIA…`) creds. |
+| `llm.bedrock.api_version` | `bedrock-2023-05-31` | Bedrock Anthropic API version. |
+| `pipeline.repo_root` | `.` | Local checkout to read & edit docs under (in Docker, the mounted path). |
+| `pipeline.target_files` | `[AGENTS.md]` | Repo-relative doc paths to analyse and edit in place. |
+| `pipeline.weeks` | `8` | Weeks of merged history to analyse. |
+| `pipeline.min_mr_occurrences` | `3` | A theme must appear in at least this many distinct PRs/MRs. |
+| `pipeline.max_changes` | `3` | Maximum edits applied per run. |
+
+<sub>The remaining pipeline settings (themes, noise filters, `extra_guidance`, …)
+are covered under [Customisation](#-customisation).</sub>
+
+### CLI
+
+There are exactly two flags — both just locate files; every actual setting is in
+the YAML:
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `--project` | *(required)* | Project path: `group/repo` (GitLab) or `owner/repo` (GitHub). |
-| `--repo-root` | `.` | Local path to the checked-out repo (used to read the docs). |
-| `--scm` | `gitlab` | SCM provider: `gitlab` or `github`. |
-| `--scm-url` | per provider | API base URL (see [Providers](#-providers)). |
-| `--provider` | `anthropic` | LLM provider: `anthropic` or `bedrock`. |
-| `--model` | per provider | Model ID. |
-| `--target-files` | `AGENTS.md` | One or more repo-relative doc paths (space-separated). |
-| `--weeks` | `8` | Weeks of merged history to analyse. |
-| `--min-mr-occurrences` | `3` | A theme must appear in at least this many distinct PRs/MRs. |
-| `--max-proposals` | `3` | Maximum proposed changes per run. |
-| `--output-dir` | `proposals` | Output directory, relative to `--repo-root`. |
-| `--config` | — | Path to a JSON/YAML config file. |
+| `--config` | `config.yaml` | Path to the YAML config file. |
+| `--env-file` | `.env` | Path to the `.env` file of secret values. |
 
-### Environment variables
+See [`config.example.yaml`](./config.example.yaml) for the full, annotated shape.
 
-**SCM**
+### Setting up AWS Bedrock
 
-| Variable | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `SCM_PROVIDER` | no | `gitlab` | `gitlab` or `github`. |
-| `SCM_TOKEN` | **yes\*** | — | Read-only token. Provider-specific fallbacks below. |
-| `SCM_URL` | no | per provider | API base URL. |
-| `GITLAB_TOKEN` / `GITLAB_URL` | — | — | Used when provider is `gitlab` and `SCM_*` unset. |
-| `GITHUB_TOKEN` / `GITHUB_URL` | — | — | Used when provider is `github` and `SCM_*` unset. |
+Bedrock runs the same Anthropic models through your AWS account. Setup:
 
-<sub>\* A token is required, supplied via `SCM_TOKEN` or the provider-specific variable.</sub>
+**1. Install the dependency.** Bedrock needs `boto3` (not pulled in by default):
 
-**LLM — Anthropic API** (default provider)
+```bash
+pip install boto3        # or: pip install -r requirements.txt
+```
 
-| Variable | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | **yes** | — | Your Anthropic API key. |
-| `LLM_MODEL_ID` / `ANTHROPIC_MODEL_ID` | no | `claude-sonnet-4-6` | Model ID. |
-| `ANTHROPIC_BASE_URL` | no | `https://api.anthropic.com` | Override for proxies/gateways. |
-| `ANTHROPIC_VERSION` | no | `2023-06-01` | Anthropic API version header. |
-| `LLM_MAX_TOKENS` | no | `4096` | Max output tokens. |
+**2. Enable model access.** In the AWS console, open **Bedrock → Model access**
+and request access to the Anthropic models you intend to use, in the region you
+will call. Access is per-account and per-region.
 
-**LLM — AWS Bedrock** (`--provider bedrock`)
+**3. Provide AWS credentials.** Unlike the AWS CLI, NotANit does **not** read the
+default credential chain (shared `~/.aws/credentials`, instance profile, etc.) —
+you must supply the access key and secret explicitly, or the run fails fast. Put
+the **values** in `.env`:
 
-| Variable | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | **yes** | — | AWS credentials. |
-| `LLM_MODEL_ID` / `AWS_BEDROCK_MODEL_ID` | no | `us.anthropic.claude-sonnet-4-6` | Bedrock model / inference-profile ID. |
-| `AWS_BEDROCK_REGION` / `AWS_REGION` | no | `us-east-1` | Bedrock region. |
-| `AWS_BEDROCK_ROLE_ARN` | no | — | Role assumed before calling Bedrock. Leave empty to use the keys directly. |
-| `AWS_BEDROCK_ANTHROPIC_VERSION` | no | `bedrock-2023-05-31` | Bedrock Anthropic API version. |
+```dotenv
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+# AWS_SESSION_TOKEN=...    # required for temporary/STS creds (ASIA... keys)
+```
 
-> 💡 Keep secrets in environment variables rather than committing them to a config file.
+If you're using **temporary credentials** (an `ASIA…` access key from SSO,
+`aws sts`, or an assumed role), you must also set `AWS_SESSION_TOKEN` — they will
+not authenticate without it. Long-term IAM keys (`AKIA…`) don't need it.
+
+**4. Reference them, and set the model, in YAML.** The default model is the
+cross-region inference profile `us.anthropic.claude-sonnet-4-6` (the `us.` prefix
+denotes an inference profile rather than a raw model ID). The region defaults to
+`us-east-1`; make sure the model ID's region prefix matches it.
+
+```yaml
+llm:
+  provider: bedrock
+  bedrock:
+    model_id: us.anthropic.claude-sonnet-4-6
+    aws_region: us-east-1
+    aws_access_key_id: ${AWS_ACCESS_KEY_ID}          # value from .env
+    aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+    aws_session_token: ${AWS_SESSION_TOKEN}          # only for temporary creds
+    aws_role_arn: ""          # see step 5
+    # api_version: bedrock-2023-05-31   # rarely needs changing
+```
+
+**5. (Optional) Assume a role.** If Bedrock access is gated behind an IAM role,
+set `llm.bedrock.aws_role_arn` in the YAML. The credentials from `.env` are then
+used only to `sts:AssumeRole` into that role (session name `notanit`), and the
+temporary credentials make the Bedrock call. Leave it empty to call with the keys
+directly.
+
+```yaml
+llm:
+  bedrock:
+    aws_role_arn: arn:aws:iam::123456789012:role/bedrock-invoke
+```
+
+Run it (credentials come from `.env`, everything else from the config):
+
+```bash
+python3 -m scripts.notanit.main      # reads ./config.yaml and ./.env
+```
+
+> The IAM principal (or assumed role) needs `bedrock:InvokeModel` on the target
+> model, plus `sts:AssumeRole` on the role when `llm.bedrock.aws_role_arn` is set.
+
+---
+
+## 🐳 Docker
+
+Run NotANit without a local Python setup. The image contains only the code;
+your **config**, **secrets**, and the **target repo** are supplied at run time, so
+nothing sensitive is ever baked into the image.
+
+```bash
+docker run --rm --env-file .env \
+  -v "$PWD/config.yaml:/app/config.yaml:ro" \
+  -v "/path/to/target-repo:/repo" \
+  ghcr.io/<your-org>/notanit:latest
+```
+
+The target doc files under `/repo` (the mounted repo) are edited in place, so the
+changes appear on your host. `--env-file .env` loads the secret values into the
+container environment, where the config's `${VAR}` references resolve them; the
+values never touch the image or `config.yaml`. Keep `pipeline.repo_root: /repo` in
+your config so the container edits the mounted location.
+
+> **Tags:** `latest` tracks `main`; releases are tagged `v1.2.3` / `1.2`. Pin to a
+> version tag for reproducible runs.
+
+### Build it yourself
+
+No need to pull — you can build from a clone instead:
+
+```bash
+docker build -t notanit .
+docker run --rm --env-file .env \
+  -v "$PWD/config.yaml:/app/config.yaml:ro" \
+  -v "/path/to/target-repo:/repo" \
+  notanit
+```
+
+### docker compose
+
+[`docker-compose.yml`](./docker-compose.yml) encodes the mounts so a run is one line:
+
+```bash
+TARGET_REPO=/path/to/target-repo docker compose run --rm notanit
+```
+
+It reads `.env` for the secrets and mounts `./config.yaml` and `$TARGET_REPO`
+(defaulting to `./repo`). Keep `pipeline.repo_root: /repo` in your config so the
+container writes to the mounted location.
+
+### Publishing the image
+
+[`.github/workflows/docker-publish.yml`](./.github/workflows/docker-publish.yml)
+builds a multi-arch image (`linux/amd64` + `linux/arm64`) and pushes it to GHCR on
+every push to `main` and every `v*` tag. It authenticates with the built-in
+`GITHUB_TOKEN`, so there are no secrets to configure.
+
+**One-time setup:** the first publish creates a **private** package. Make it public
+via the repo's **Packages** page → the package → **Package settings** →
+**Change visibility** → *Public*. After that, `docker run ghcr.io/<your-org>/notanit`
+works with no login.
 
 ---
 
@@ -192,13 +363,13 @@ Every value resolves with this precedence:
 
 ### SCM
 
-| Provider | `--scm` | Default API base | `--project` format | Token scope |
+| Provider | `scm.provider` | Default API base | `scm.project_path` format | Token scope |
 | --- | --- | --- | --- | --- |
 | GitLab (SaaS or self-hosted) | `gitlab` | `https://gitlab.com` | `group/subgroup/repo` | `read_api` |
 | GitHub (.com or Enterprise) | `github` | `https://api.github.com` | `owner/repo` | `repo` read |
 
-- **Self-hosted GitLab:** `--scm-url https://gitlab.example.com`
-- **GitHub Enterprise:** `--scm-url https://github.example.com/api/v3`
+- **Self-hosted GitLab:** `scm.url: https://gitlab.example.com`
+- **GitHub Enterprise:** `scm.url: https://github.example.com/api/v3`
 
 Adding a provider is a matter of writing a client with a
 `fetch_review_comments(weeks)` method that returns `ReviewComment` objects and
@@ -206,10 +377,10 @@ registering it in `scm.py:build_scm_client`.
 
 ### LLM
 
-| Provider | `--provider` | Dependency | Notes |
+| Provider | `llm.provider` | Dependency | Notes |
 | --- | --- | --- | --- |
 | Anthropic API | `anthropic` | `requests` only | Simplest setup; the default. |
-| AWS Bedrock | `bedrock` | `boto3` | Anthropic models on Bedrock, with optional `AWS_BEDROCK_ROLE_ARN` assumption. |
+| AWS Bedrock | `bedrock` | `boto3` | Anthropic models on Bedrock, with optional `llm.bedrock.aws_role_arn` role assumption. |
 
 Add one by writing a `_call_<provider>` function in `llm_client.py` and
 registering it in the `_PROVIDERS` map.
@@ -227,22 +398,24 @@ via the config file (no code edits needed):
   **first** theme whose keyword it contains. Replace these to match how *your*
   team reviews.
 - **`noise_patterns`** + **`min_comment_length`** — drop more low-signal chatter.
-- **`min_mr_occurrences`** / **`max_proposals`** / **`weeks`** — sensitivity and volume.
+- **`min_mr_occurrences`** / **`max_changes`** / **`weeks`** — sensitivity and volume.
 - **`extra_guidance`** — free-text instructions appended to the LLM prompt to
   steer tone or scope (e.g. *"Prefer imperative phrasing; never propose
   formatting rules"*) without touching code.
 
-See [`config.example.yaml`](./config.example.yaml) and
-[`config.example.json`](./config.example.json) for the full, annotated shape.
+See [`config.example.yaml`](./config.example.yaml) for the full, annotated shape.
 
-**Getting more signal from a small or quiet repo:**
+**Getting more signal from a small or quiet repo** — widen the window, lower the
+threshold, and read more docs, all in `config.yaml`:
 
-```bash
-python3 -m scripts.notanit.main \
-  --scm gitlab --project acme/widgets --repo-root /tmp/widgets \
-  --target-files AGENTS.md CONTRIBUTING.md \
-  --weeks 26 \
-  --min-mr-occurrences 1
+```yaml
+pipeline:
+  repo_root: /tmp/widgets
+  target_files:
+    - AGENTS.md
+    - CONTRIBUTING.md
+  weeks: 26
+  min_mr_occurrences: 1
 ```
 
 > Target files that don't exist in the repo are skipped with a warning — double-check the paths match what's actually committed.
@@ -259,8 +432,9 @@ python3 -m scripts.notanit.main \
 
 ## 📦 Requirements
 
-- Python 3.10+
-- `pip install -r requirements.txt` — `requests` (required); `boto3` (Bedrock only); `pyyaml` (YAML config only)
+- Python 3.10+ (or just [Docker](#-docker) — no local Python needed)
+- `pip install -r requirements.txt` — `requests` + `pyyaml` (required); `boto3` (Bedrock only). `.env` loading is built in, no dependency.
+- A YAML config file (copy [`config.example.yaml`](./config.example.yaml) to `config.yaml`)
 - A read-only SCM token (GitLab `read_api` or GitHub `repo` read)
 - An LLM credential (Anthropic API key **or** AWS Bedrock access)
 - A local clone of the target repo (to read the doc files)
@@ -271,7 +445,8 @@ python3 -m scripts.notanit.main \
 
 Issues and PRs are welcome — especially new SCM/LLM providers and better theme
 clustering. The codebase is small, dependency-light, and provider boundaries are
-clean by design.
+clean by design. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for dev setup and how
+images are published.
 
 ## 📄 License
 

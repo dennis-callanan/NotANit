@@ -24,3 +24,6 @@ __pycache__/
 .venv/
 venv/
 .env
+
+# Machine-specific CA bundle (generated from local trust store)
+.certs/

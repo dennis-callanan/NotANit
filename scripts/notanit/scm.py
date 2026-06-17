@@ -18,6 +18,21 @@ class ReviewComment:
     created_at: str
 
 
+def raise_for_auth(resp, provider: str) -> None:
+    """Turn an auth failure into an actionable message before ``raise_for_status``.
+
+    A 401/403 here means the token was rejected even though it passed the
+    config-time shape check — typically expired, revoked, lacking ``read_api``
+    scope, or minted on a different (self-managed) host than ``scm.url``.
+    """
+    if resp.status_code in (401, 403):
+        raise PermissionError(
+            f"{provider} rejected the token ({resp.status_code}). Check that it is "
+            f"not expired/revoked, has 'read_api' (GitLab) or 'repo' read (GitHub) "
+            f"scope, and was created on the same host as scm.url."
+        )
+
+
 def is_noise(body: str, noise_patterns: list[str], min_length: int) -> bool:
     """True if a comment is too short or matches a low-signal pattern."""
     lowered = body.strip().lower()
@@ -38,6 +53,7 @@ def build_scm_client(scm_cfg, noise_patterns: list[str], min_comment_length: int
             project_path=scm_cfg.project_path,
             noise_patterns=noise_patterns,
             min_comment_length=min_comment_length,
+            verify=scm_cfg.verify,
         )
     if provider == "github":
         from .github_client import GitHubClient
@@ -48,6 +64,7 @@ def build_scm_client(scm_cfg, noise_patterns: list[str], min_comment_length: int
             project_path=scm_cfg.project_path,
             noise_patterns=noise_patterns,
             min_comment_length=min_comment_length,
+            verify=scm_cfg.verify,
         )
     raise ValueError(
         f"Unknown SCM provider '{provider}'. Use 'gitlab' or 'github'."

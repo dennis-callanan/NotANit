@@ -1,6 +1,5 @@
-requests
-# Optional extras:
-#   boto3   — only needed for the AWS Bedrock LLM provider
-#   pyyaml  — only needed to use a YAML (rather than JSON) config file
+requests          # HTTP (SCM APIs + Anthropic Messages API)
+pyyaml            # parsing the YAML config file
+# Optional extra:
+#   boto3 — only needed for the AWS Bedrock LLM provider
 boto3
-pyyaml

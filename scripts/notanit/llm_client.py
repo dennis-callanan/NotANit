@@ -40,10 +40,15 @@ def _call_anthropic(cfg: LLMConfig, prompt: str) -> str:
 def _build_bedrock_client(cfg: LLMConfig):
     import boto3  # imported lazily so anthropic-only users don't need boto3
 
+    # Empty string would be passed verbatim to boto3; coerce to None so long-term
+    # IAM keys (no session token) work and temporary STS creds carry their token.
+    session_token = cfg.aws_session_token or None
+
     if cfg.aws_role_arn:
         base_session = boto3.Session(
             aws_access_key_id=cfg.aws_access_key_id,
             aws_secret_access_key=cfg.aws_secret_access_key,
+            aws_session_token=session_token,
             region_name=cfg.aws_region,
         )
         sts = base_session.client("sts")
@@ -62,6 +67,7 @@ def _build_bedrock_client(cfg: LLMConfig):
         session = boto3.Session(
             aws_access_key_id=cfg.aws_access_key_id,
             aws_secret_access_key=cfg.aws_secret_access_key,
+            aws_session_token=session_token,
             region_name=cfg.aws_region,
         )
 
