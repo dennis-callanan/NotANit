@@ -19,3 +19,7 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ${TARGET_DOCS:-./docs}:/docs
+      # Behind a corporate TLS proxy? If `scm.ca_bundle` points at a root CA on the
+      # host, uncomment the next line to mount it where the config expects it
+      # (relative to /app). Leave commented otherwise. See README → Docker.
+      # - ./.certs:/app/.certs:ro

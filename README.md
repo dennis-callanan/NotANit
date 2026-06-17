@@ -172,7 +172,7 @@ switch with one line.
 | `scm.url` | per provider | API base URL (see [Providers](#-providers)). |
 | `scm.project_path` | *(required)* | `group/repo` or `owner/repo`. |
 | `scm.token` | — | **Credential** → `${SCM_TOKEN}` (or `GITLAB_TOKEN` / `GITHUB_TOKEN`). |
-| `scm.ca_bundle` | — | Path to a CA-bundle PEM (e.g. a corporate TLS-proxy root CA). |
+| `scm.ca_bundle` | — | Path to a CA-bundle PEM (e.g. a corporate TLS-proxy root CA). In Docker this file needs its own mount — see [Docker → Custom CA bundle](#custom-ca-bundle-corporate-tls-proxy). |
 | `scm.verify_tls` | `true` | Set `false` to skip TLS verification (insecure; last resort). |
 | `llm.provider` | inferred | Selects the active block. **Optional** — inferred when you configure only one of `llm.anthropic` / `llm.bedrock`; required only if both are populated. |
 | `llm.max_tokens` | `4096` | Max output tokens (shared). |
@@ -298,6 +298,35 @@ your config so the container edits the mounted location.
 
 > **Tags:** `latest` tracks `main`; releases are tagged `v1.2.3` / `1.2`. Pin to a
 > version tag for reproducible runs.
+
+> **Don't quote values in `.env` when using Docker.** NotANit's own `.env` loader
+> strips surrounding quotes, but Docker's `--env-file` does **not** — it passes
+> `KEY="value"` through with the quotes intact, corrupting the credential. A quoted
+> AWS key, for example, surfaces as `InvalidClientTokenId` on the Bedrock call.
+> Write `AWS_ACCESS_KEY_ID=ASIA…`, not `AWS_ACCESS_KEY_ID="ASIA…"`. Unquoted values
+> work in both modes.
+
+### Custom CA bundle (corporate TLS proxy)
+
+If your SCM sits behind a TLS-inspection proxy you'll set `scm.ca_bundle` in the
+config to point at the proxy's root CA. That file lives on your host, so it needs
+its **own mount** — otherwise the container hits
+`Could not find a suitable TLS CA certificate bundle`. Mount it to the path your
+config references and add `--env-file`/the other mounts as usual:
+
+```bash
+docker run --rm --env-file .env \
+  -v "$PWD/config.yaml:/app/config.yaml:ro" \
+  -v "/path/to/docs-folder:/docs" \
+  -v "$PWD/.certs:/app/.certs:ro" \
+  ghcr.io/dennis-callanan/notanit:latest
+```
+
+`scm.ca_bundle` is resolved relative to the working dir (`/app` in the image), so a
+config value of `.certs/combined-ca.pem` matches the `/app/.certs` mount above and
+the *same* config works both in Docker and when run directly. Mounting a single
+file works too — e.g. `-v "$PWD/.certs/combined-ca.pem:/app/.certs/combined-ca.pem:ro"`.
+Skip this mount entirely if you don't set `scm.ca_bundle`.
 
 ### Build it yourself
 
