@@ -1,5 +1,5 @@
-# Output directory for generated proposals
-proposals/
+# Local config (personal; use config.example.yaml as the committed template)
+config.yaml
 
 # macOS
 .DS_Store
